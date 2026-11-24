@@ -1,0 +1,5 @@
+{
+  "name": "codex-seats",
+  "owner": { "name": "FlatPaper" },
+  "plugins": [{ "name": "codex-seats", "source": "./" }]
+}

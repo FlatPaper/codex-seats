@@ -1,0 +1,6 @@
+{
+  "name": "codex-seats",
+  "version": "0.1.0",
+  "description": "A side pane listing the Codex seats flatpaper-stack's codex-run.sh starts, with model, effort, status and latest log line",
+  "types": "./types/index.d.ts"
+}
