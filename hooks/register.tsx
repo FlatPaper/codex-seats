@@ -58,7 +58,7 @@ export function parseSeat(command: string): Omit<Seat, 'id' | 'task' | 'startedA
     model: model === 'default' ? 'codex default' : model,
     effort,
     isReadOnly: rest.includes('read-only'),
-    agent: agentAt >= 0 ? rest[agentAt + 1] : undefined,
+    agent: agentAt >= 0 ? rest[agentAt + 1]?.split('/').pop()?.replace(/\.md$/, '') : undefined,
     log: logPath(prompt),
   }
 }
