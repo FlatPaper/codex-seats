@@ -20,8 +20,6 @@ From a shell:
 claude plugin install codex-seats --marketplace FlatPaper/codex-seats
 ```
 
-This repository is private. Installing it needs access to the repository and GitHub set up on your computer.
-
 ## Use
 
 - `/codex-seats` opens the pane.
