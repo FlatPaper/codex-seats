@@ -47,7 +47,7 @@ A Codex seat runs as a background Bash command. Claude Agent options, including 
 `read-only` and `--agent <path>` can appear in either order after the four required arguments. Without `read-only`, the runner passes `--write`. With `default`, it omits the companion's `--model` argument.
 The calling plugin's instructions decide when a seat runs `read-only` and which agent file it passes, and this skill only documents the arguments.
 
-The runner replaces `${CLAUDE_PLUGIN_ROOT}` in the agent body with the nearest ancestor directory of the agent file that contains `.claude-plugin/plugin.json`. If the body uses the placeholder and no such directory exists, the runner exits 2 and names the agent path. The brief remains verbatim.
+The runner replaces the plugin-root placeholder in the agent body, the name `CLAUDE_PLUGIN_ROOT` wrapped in a dollar sign and curly braces, with the nearest ancestor directory of the agent file that contains `.claude-plugin/plugin.json`. If the body uses the placeholder and no such directory exists, the runner exits 2 and names the agent path. The brief remains verbatim.
 
 The runner writes a combined prompt beside the brief. For `brief.md`, the output is `brief.prompt.md`, or `brief.reviewer.prompt.md` with an agent named `reviewer.md`. Each rerun overwrites that combined prompt. Use a separate brief path for each concurrent seat.
 
