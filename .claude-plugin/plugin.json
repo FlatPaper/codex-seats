@@ -1,6 +1,6 @@
 {
   "name": "codex-seats",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Run Codex models as subagent seats and show their model, effort, status, and latest log line in a side pane",
   "types": "./types/index.d.ts"
 }
