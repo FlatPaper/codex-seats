@@ -52,13 +52,18 @@ export function parseSeat(command: string): Omit<Seat, 'id' | 'task' | 'startedA
   if (at < 0) return undefined
   const [, model, effort, prompt, ...rest] = argv.slice(at + 1)
   if (model === undefined || effort === undefined || prompt === undefined) return undefined
-  const agentAt = rest.indexOf('--agent')
+  let isReadOnly = false
+  let agent: string | undefined
+  for (let i = 0; i < rest.length; i++) {
+    if (rest[i] === '--agent') agent = rest[++i]?.split('/').pop()?.replace(/\.md$/, '')
+    else if (rest[i] === 'read-only') isReadOnly = true
+  }
 
   return {
     model: model === 'default' ? 'codex default' : model,
     effort,
-    isReadOnly: rest.includes('read-only'),
-    agent: agentAt >= 0 ? rest[agentAt + 1] : undefined,
+    isReadOnly,
+    agent,
     log: logPath(prompt),
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "codex-seats",
-  "version": "0.1.0",
-  "description": "A side pane listing the Codex seats flatpaper-stack's codex-run.sh starts, with model, effort, status and latest log line",
+  "version": "0.2.0",
+  "description": "Run Codex models as subagent seats and show their model, effort, status, and latest log line in a side pane",
   "types": "./types/index.d.ts"
 }

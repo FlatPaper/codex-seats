@@ -15,7 +15,26 @@ const PANE = {
 } as const
 
 const COMMAND =
-  '"/p/skills/flatpaper-mode/scripts/codex-run.sh" /repo gpt-6.1-terra high /s/codex-review.md read-only --agent flatpaper-agent'
+  '"/p/skills/codex-seat/scripts/codex-run.sh" /repo gpt-6.1-terra high /s/codex-review.md read-only --agent "/agents/review prompts/reviewer.md"'
+
+test('an agent named read-only appears as a writing seat', async ($, on) => {
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('tool.call', () => ({
+    result: { stdout: '', stderr: '', interrupted: false, backgroundTaskId: 'b1' },
+  }))
+
+  await $.tool.call({
+    tool: 'Bash',
+    command: '"/p/skills/codex-seat/scripts/codex-run.sh" /repo gpt-6.1-terra high /s/brief.md --agent read-only',
+    run_in_background: true,
+  })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /gpt-6.1-terra/ }))?.text).toBe(
+    '  gpt-6.1-terra · high · write · read-only',
+  )
+  await ui.unmount()
+})
 
 test('a codex-run.sh call becomes a seat, and its notification ends it', async ($, on) => {
   on('ui.open', () => ({ value: { isPlaced: true } }))
@@ -38,7 +57,7 @@ test('a codex-run.sh call becomes a seat, and its notification ends it', async (
     const ui = await $.ui.mount({ ...PANE, surface })
     expect((await ui.find({ type: 'Text', text: /review PR 56/ }))?.text).toContain('review PR 56')
     expect((await ui.find({ type: 'Text', text: /gpt-6.1-terra/ }))?.text).toBe(
-      '  gpt-6.1-terra · high · read-only · flatpaper-agent',
+      '  gpt-6.1-terra · high · read-only · reviewer',
     )
     expect((await ui.find({ type: 'Text', text: /running ·/ }))?.text).toBe('1 running · 0 finished')
     await ui.unmount()
