@@ -45,6 +45,7 @@ A Codex seat runs as a background Bash command. Claude Agent options, including 
 7. Call `TaskStop` on the background command to stop the seat.
 
 `read-only` and `--agent <path>` can appear in either order after the four required arguments. Without `read-only`, the runner passes `--write`. With `default`, it omits the companion's `--model` argument.
+The calling plugin's instructions decide when a seat runs `read-only` and which agent file it passes, and this skill only documents the arguments.
 
 The runner replaces `${CLAUDE_PLUGIN_ROOT}` in the agent body with the nearest ancestor directory of the agent file that contains `.claude-plugin/plugin.json`. If the body uses the placeholder and no such directory exists, the runner exits 2 and names the agent path. The brief remains verbatim.
 
