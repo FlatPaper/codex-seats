@@ -252,7 +252,7 @@ const timer = setInterval(() => {
     if (existsSync(dir)) writeFileSync(exited, "yes");
   });
   const child = spawn("/bin/bash", [script, "start", dir], {
-    env: { ...hostEnv(), CHROME: chrome, ...extra, NODE_OPTIONS: `--require=${adapter}` }, stdio: ["ignore", "pipe", "pipe"],
+    env: { ...hostEnv(), CHROME: chrome, ...extra, NODE_OPTIONS: `${extra.NODE_OPTIONS ?? ""} --require=${adapter}`.trim() }, stdio: ["ignore", "pipe", "pipe"],
   });
   fixtures.get(dir).add(child);
   let stdout = "";
@@ -304,6 +304,84 @@ function runAsync(action, dir, env = hostEnv()) {
   child.stdout.on("data", (data) => { stdout += data; });
   child.stderr.on("data", (data) => { stderr += data; });
   return once(child, "close").then(([status]) => ({ status, stdout, stderr }));
+}
+
+function busyProfile(dir, code, duration) {
+  const adapter = join(dir, "busy-profile.cjs");
+  writeFileSync(adapter, `
+const fs = require("node:fs");
+const remove = fs.rmSync;
+let until;
+fs.rmSync = (path, options) => {
+  if (path === ${JSON.stringify(join(dir, "profile"))}) {
+    until ??= Date.now() + ${duration};
+    if (Date.now() < until) {
+      fs.writeFileSync(${JSON.stringify(join(dir, "busy-profile-hit"))}, "yes");
+      throw Object.assign(new Error("profile is still being written"), { code: ${JSON.stringify(code)} });
+    }
+  }
+  return remove(path, options);
+};
+`);
+  return { ...hostEnv(), NODE_OPTIONS: `--require=${adapter}`, BROWSER_FOR_SEAT_TIMEOUT_MS: "1000" };
+}
+
+for (const code of ["ENOTEMPTY", "EBUSY"]) {
+  test(`stop retries ${code} after Chrome has exited`, async (t) => {
+    const { dir } = fixture(t);
+    mkdirSync(join(dir, "profile"));
+    writeFileSync(join(dir, "browser.env"), "PORT=1\nBROWSER=/devtools/browser/stale\n");
+    const result = await runAsync("stop", dir, busyProfile(dir, code, 200));
+    assert.equal(existsSync(join(dir, "busy-profile-hit")), true);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, "");
+    assert.equal(result.stderr, "");
+    assert.equal(existsSync(join(dir, "browser.env")), false);
+    assert.equal(existsSync(join(dir, "profile")), false);
+  });
+
+  test(`stop keeps state when ${code} lasts past the deadline`, async (t) => {
+    const { dir } = fixture(t);
+    mkdirSync(join(dir, "profile"));
+    const state = "PORT=1\nBROWSER=/devtools/browser/stale\n";
+    writeFileSync(join(dir, "browser.env"), state);
+    const result = await runAsync("stop", dir, {
+      ...busyProfile(dir, code, 10000), BROWSER_FOR_SEAT_TIMEOUT_MS: "150",
+    });
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.equal(result.stderr, `error: a Chrome may still be running on ${join(dir, "profile")}; state kept in ${dir}\n`);
+    assert.equal(readFileSync(join(dir, "browser.env"), "utf8"), state);
+    assert.equal(existsSync(join(dir, "profile")), true);
+    assert.equal((await runAsync("stop", dir)).status, 0);
+    assert.equal(existsSync(join(dir, "browser.env")), false);
+    assert.equal(existsSync(join(dir, "profile")), false);
+  });
+
+  test(`start failure retries ${code} during profile cleanup`, async (t) => {
+    const { dir } = fixture(t);
+    const { result } = startAsync(dir, fakeChrome(dir, "process.exit(7);"), busyProfile(dir, code, 200));
+    const start = await result;
+    assert.equal(existsSync(join(dir, "busy-profile-hit")), true);
+    assert.equal(start.status, 1);
+    assert.equal(start.stderr, "error: Chrome exited before DevTools was ready; see browser.log\n");
+    assert.equal(existsSync(join(dir, "browser.env")), false);
+    assert.equal(existsSync(join(dir, "profile")), false);
+  });
+
+  test(`stop retries ${code} after closing a DevTools browser`, async (t) => {
+    const { dir } = fixture(t);
+    const { result } = startAsync(dir, devToolsChrome(dir));
+    const start = await result;
+    assert.equal(start.status, 0, start.stderr);
+    const stop = await runAsync("stop", dir, busyProfile(dir, code, 200));
+    assert.equal(existsSync(join(dir, "busy-profile-hit")), true);
+    assert.equal(stop.status, 0, stop.stderr);
+    assert.equal(stop.stdout, "");
+    assert.equal(stop.stderr, "");
+    assert.equal(existsSync(join(dir, "browser.env")), false);
+    assert.equal(existsSync(join(dir, "profile")), false);
+  });
 }
 
 test("start failure keeps state when child termination cannot be confirmed", async (t) => {

@@ -115,8 +115,16 @@ function closeBrowser(target, signal, deadline) {
   });
 }
 
-function removeState() {
-  rmSync(profile, { recursive: true, force: true });
+async function removeState(deadline) {
+  do {
+    try { rmSync(profile, { recursive: true, force: true }); break; }
+    catch (error) {
+      if (error.code !== "ENOTEMPTY" && error.code !== "EBUSY") throw error;
+    }
+    if (Date.now() >= deadline) throw new Error(`a Chrome may still be running on ${profile}; state kept in ${dir}`);
+    await pause(Math.min(50, Math.max(1, deadline - Date.now())));
+    if (Date.now() >= deadline) throw new Error(`a Chrome may still be running on ${profile}; state kept in ${dir}`);
+  } while (true);
   rmSync(state, { force: true });
 }
 
@@ -150,7 +158,7 @@ async function main() {
           while (Date.now() < deadline) {
             const answer = await version(target.port, cancellation.signal, deadline);
             checkInterrupted();
-            if (answer === null && !locked()) { removeState(); return; }
+            if (answer === null && !locked()) { await removeState(deadline); return; }
             await pause(Math.min(50, Math.max(1, deadline - Date.now())));
           }
           uncertain();
@@ -158,7 +166,7 @@ async function main() {
       }
       checkInterrupted();
       if (locked()) uncertain();
-      removeState();
+      await removeState(deadline);
       return;
     }
 
@@ -204,8 +212,8 @@ async function main() {
     throw new Error(`Chrome DevTools did not answer within ${timeout} milliseconds; see browser.log`);
   } catch (error) {
     if (action === "start" && record !== undefined) {
+      const deadline = Date.now() + timeout;
       if (child && !exited && child.exitCode === null) {
-        const deadline = Date.now() + timeout;
         if (target) await closeBrowser(target, undefined, deadline);
         else child.kill("SIGTERM");
         const escalation = Date.now() + Math.max(0, deadline - Date.now()) * 0.8;
@@ -217,7 +225,7 @@ async function main() {
         child.unref();
         throw new Error(`${error.message}; could not confirm Chrome exited; state kept in ${dir}`);
       }
-      removeState();
+      await removeState(deadline);
     }
     throw error;
   } finally {
